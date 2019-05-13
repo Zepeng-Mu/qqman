@@ -46,7 +46,7 @@
 #' @export
 
 manhattan <- function(x, chr="CHR", bp="BP", p="P", snp="SNP", 
-                      col=c("gray10", "gray60"), chrlabs=NULL,
+                      col=c("gray40", "gray60"), chrlabs=NULL,
                       suggestiveline=-log10(1e-5), genomewideline=-log10(5e-8), 
                       highlight=NULL, logp=TRUE, annotatePval = NULL, annotateTop = TRUE, ...) {
 
