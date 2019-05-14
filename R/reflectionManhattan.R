@@ -29,6 +29,7 @@
 #' @param annotatePval If set, SNPs below this p-value will be annotated on the plot. If logp is FALSE, SNPs above the specified value will be annotated.
 #' @param annotateTop If TRUE, only annotates the top hit on each chromosome that is below the annotatePval threshold (or above if logp is FALSE). 
 #' @param ... Arguments passed on to other plot/points functions
+#' @param ylim Used to set the range and plot y-axis
 #'   
 #' @return A manhattan plot.
 #'   
@@ -45,13 +46,13 @@
 #'   
 #' @export
 
-manhattan <- function(x, chr="CHR", bp="BP", p="P", snp="SNP", 
-                      col=c("gray40", "gray60"), chrlabs=NULL,
-                      suggestiveline=-log10(1e-5), genomewideline=-log10(5e-8), 
-                      highlight=NULL, logp=TRUE, annotatePval = NULL, annotateTop = TRUE, ...) {
+reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP", ylim = NULL,
+                      col = c("gray50", "gray70"), chrlabs = NULL,
+                      suggestiveline = -log10(1e-5), genomewideline = -log10(5e-8), 
+                      highlight1 = NULL, highlight2 = NULL, logp = TRUE, annotatePval = NULL, annotateTop = TRUE, ...) {
 
     # Not sure why, but package check will warn without this.
-    CHR=BP=P=index=NULL
+    # CHR=BP=P=index=NULL
     
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
@@ -65,79 +66,43 @@ manhattan <- function(x, chr="CHR", bp="BP", p="P", snp="SNP",
     if (!is.numeric(x[[bp]])) stop(paste(bp, "column should be numeric."))
     if (!is.numeric(x[[p]])) stop(paste(p, "column should be numeric."))
     
-    # Create a new data.frame with columns called CHR, BP, and P.
-    # d=data.frame(CHR=x[[chr]], BP=x[[bp]], P=x[[p]], pos = NA, index = NA) # with millions of SNPs, create dataframe at once 
-	                                                         #  rather than dynamically allocated(see line 72-73, and remove line 87 and line 91 )
-    
     # If the input data frame has a SNP column, add it to the new data frame you're creating.
-    if (!is.null(x[[snp]])) d = data.frame(CHR=x[[chr]], BP=x[[bp]], P=x[[p]], pos = NA, index = NA ,SNP=x[[snp]], stringsAsFactors = FALSE) else 
-	    d = data.frame(CHR=x[[chr]], BP=x[[bp]], P=x[[p]], pos = NA, index = NA)
+    if (!is.null(x[[snp]])) {
+        d = data.frame(CHR = x[[chr]], BP = x[[bp]], P = x[[p]], pos  =  NA, index = NA ,SNP = x[[snp]], stringsAsFactors = FALSE)
+    } else {
+        d = data.frame(CHR = x[[chr]], BP = x[[bp]], P = x[[p]], pos = NA, index = NA)
+    }
 	    
-    
     # Set positions, ticks, and labels for plotting
     ## Sort and keep only values where is numeric.
-    #d <- subset(d[order(d$CHR, d$BP), ], (P>0 & P<=1 & is.numeric(P)))
-    #  d <- subset(d, (is.numeric(CHR) & is.numeric(BP) & is.numeric(P)))       ## unused, all three variables are numeric, line:63-65 
     d <- d[order(d$CHR, d$BP), ]
-    #d$logp <- ifelse(logp, yes=-log10(d$P), no=d$P)
     if (logp) {
         d$logp <- -log10(d$P)
     } else {
         d$logp <- d$P
     }
-   # d$pos=NA
     
+    d$index = rep.int(seq_along(unique(d$CHR)), times = tapply(d$SNP,d$CHR,length))
     
-    # Fixes the bug where one chromosome is missing by adding a sequential index column.
-   # d$index=NA
-   # ind = 0
-   # for (i in unique(d$CHR)){
-   #     ind = ind + 1
-   #     d[d$CHR==i,]$index = ind
-   # }
-   d$index = rep.int(seq_along(unique(d$CHR)), times = tapply(d$SNP,d$CHR,length))  # replcace the for loop of line 92-96 to improve efficiency
-    
-    # This section sets up positions and ticks. Ticks should be placed in the
-    # middle of a chromosome. The a new pos column is added that keeps a running
-    # sum of the positions of each successive chromsome. For example:
-    # chr bp pos
-    # 1   1  1
-    # 1   2  2
-    # 2   1  3
-    # 2   2  4
-    # 3   1  5
     nchr = length(unique(d$CHR))
-    if (nchr==1) { ## For a single chromosome
-        ## Uncomment the next two linex to plot single chr results in Mb
-        #options(scipen=999)
-	    #d$pos=d$BP/1e6
-        d$pos=d$BP
-      #  ticks=floor(length(d$pos))/2+1          ## unused, from code line: 169
+    if (nchr == 1) { ## For a single chromosome
+        d$pos = d$BP
         xlabel = paste('Chromosome',unique(d$CHR),'position')
-      #  labs = ticks          ## unused, from code line: 169
     } else { ## For multiple chromosomes
-        lastbase=0
-        ticks=NULL
+        lastbase = 0
+        ticks = NULL
         for (i in unique(d$index)) {
-            if (i==1) {
-                d[d$index==i, ]$pos=d[d$index==i, ]$BP
+            if (i == 1) {
+                d[d$index == i, ]$pos = d[d$index == i, ]$BP
             } else {
-		## chromosome position maybe not start at 1, eg. 9999. So gaps may be produced. 
-		lastbase = lastbase +max(d[d$index==(i-1),"BP"])   # replace line 128
-		d[d$index == i,"BP"] = d[d$index == i,"BP"]-min(d[d$index==i,"BP"]) +1
-		d[d$index == i, "pos"] = d[d$index == i,"BP"] + lastbase    # replace line 129
-                # lastbase=lastbase+tail(subset(d,index==i-1)$BP, 1)
-                # d[d$index==i, ]$pos=d[d$index==i, ]$BP+lastbase
-		   
+		        ## chromosome position maybe not start at 1, eg. 9999. So gaps may be produced. 
+        		lastbase = lastbase + max(d[d$index == (i - 1),"BP"])
+        		d[d$index == i,"BP"] = d[d$index == i,"BP"]-min(d[d$index == i,"BP"]) +1
+        		d[d$index == i, "pos"] = d[d$index == i,"BP"] + lastbase
             }
-            # Old way: assumes SNPs evenly distributed
-            # ticks=c(ticks, d[d$index==i, ]$pos[floor(length(d[d$index==i, ]$pos)/2)+1])
-            # New way: doesn't make that assumption
-           # ticks = c(ticks, (min(d[d$index == i,]$pos) + max(d[d$index == i,]$pos))/2 + 1)  # see line 136, to reduce the burden of for loop 
         }
-	ticks <-tapply(d$pos,d$index,quantile,probs=0.5)   # replace line 135
+	ticks <-tapply(d$pos,d$index,quantile,probs=0.5)
         xlabel = 'Chromosome'
-        #labs = append(unique(d$CHR),'') ## I forgot what this was here for... if seems to work, remove.
         labs <- unique(d$CHR)
     }
     
@@ -145,17 +110,20 @@ manhattan <- function(x, chr="CHR", bp="BP", p="P", snp="SNP",
     xmax = ceiling(max(d$pos) * 1.03)
     xmin = floor(max(d$pos) * -0.03)
     
-    # The old way to initialize the plot
-    # plot(NULL, xaxt='n', bty='n', xaxs='i', yaxs='i', xlim=c(xmin,xmax), ylim=c(ymin,ymax),
-    #      xlab=xlabel, ylab=expression(-log[10](italic(p))), las=1, pch=20, ...)
+    if (!is.null(ylim)) {
+        ymin <- ylim[1]
+        ymax <- ylim[2]
+    }
 
-    
     # The new way to initialize the plot.
     ## See http://stackoverflow.com/q/23922130/654296
     ## First, define your default arguments
-    def_args <- list(xaxt='n', bty='n', xaxs='i', yaxs='i', las=1, pch=20,
-                     xlim=c(xmin,xmax), ylim=c(0,ceiling(max(d$logp))),
+    ### change ylim to include reflection
+    ### supress y axis, do it later
+    def_args <- list(xaxt='n', yaxt = 'n', bty='n', xaxs='i', las=1, pch=20,
+                     xlim=c(xmin, xmax), ylim=c(-ceiling(max(d$logp)), ceiling(max(d$logp))),
                      xlab=xlabel, ylab=expression(-log[10](italic(p))))
+
     ## Next, get a list of ... arguments
     #dotargs <- as.list(match.call())[-1L]
     dotargs <- list(...)
@@ -176,39 +144,56 @@ manhattan <- function(x, chr="CHR", bp="BP", p="P", snp="SNP",
         }
     }
     
-    # Add an axis. 
-    if (nchr==1) { #If single chromosome, ticks and labels automatic.
-        axis(1, ...)
-    } else { # if multiple chrs, use the ticks and labels you created above.
-        axis(1, at=ticks, labels=labs, ...)
-    }
-    
     # Create a vector of alternatiting colors
     #col=rep(col, max(d$CHR))  # replaced by line 187
     col = rep_len(col, max(d$index))  ## mean this one?  the results are same
 
     # Add points to the plot
-    if (nchr==1) {
-        with(d, points(pos, logp, pch=20, col=col[1], ...))
+    if (nchr == 1) {
+        with(d, points(pos, logp, pch = 20, col = col[1], ...))
+        # plot reflection points
+        with(d, points(pos, -logp, pch = 20, col = col[1], ...))
     } else {
         # if multiple chromosomes, need to alternate colors and increase the color index (icol) each chr.
         icol=1
         for (i in unique(d$index)) {
-            #with(d[d$index==unique(d$index)[i], ], points(pos, logp, col=col[icol], pch=20, ...))
-	    points(d[d$index==i,"pos"], d[d$index==i,"logp"], col=col[icol], pch=20, ...)
-            icol=icol+1
+          points(d[d$index == i,"pos"], d[d$index == i,"logp"], col = col[icol], pch = 20, ...)
+          # plot reflection points
+          points(d[d$index == i,"pos"], -d[d$index == i,"logp"], col = col[icol], pch = 20, ...)
+          icol = icol + 1
         }
     }
     
+    abline(h = 0, lty = 2, lwd = 2, col = "white")
+    
+    # Add x axis. 
+    if (nchr == 1) { #If single chromosome, ticks and labels automatic.
+        axis(1, ...)
+    } else { # if multiple chrs, use the ticks and labels you created above.
+        axis(1, at=ticks, labels=labs, ...)
+    }
+    
+    # Add y axis
+    yticks <- seq(ymin, ymax, length.out = 9)
+    ylabs <- abs(yticks)
+    axis(2, at = yticks, labels = ylabs)
+    
     # Add suggestive and genomewide lines
-    if (suggestiveline) abline(h=suggestiveline, col="blue")
-    if (genomewideline) abline(h=genomewideline, col="red")
+    if (suggestiveline) abline(h = suggestiveline, col = "blue")
+    if (genomewideline) abline(h = genomewideline, col = "red")
     
     # Highlight snps from a character vector
-    if (!is.null(highlight)) {
-        if (any(!(highlight %in% d$SNP))) warning("You're trying to highlight SNPs that don't exist in your results.")
-        d.highlight=d[which(d$SNP %in% highlight), ]
-        with(d.highlight, points(pos, logp, col="green3", pch=20, ...)) 
+    if (!is.null(highlight1)) {
+        if (any(!(highlight1 %in% d$SNP))) warning("You're trying to highlight SNPs that don't exist in your results.")
+        highlight1 = d[which(d$SNP %in% highlight1), ]
+        with(highlight1, points(pos, logp, col = "steelblue", pch = 20, ...)) 
+    }
+    
+    # Highlight snps in the lower part 
+    if (!is.null(highlight2)) {
+        if (any(!(highlight2 %in% d$SNP))) warning("You're trying to highlight SNPs that don't exist in your results.")
+        highlight2 <- d[which(d$SNP %in% highlight2), ]
+        with(highlight2, points(pos, -logp, col = "steelblue", pch = 20, ...)) 
     }
     
     # Highlight top SNPs
@@ -239,7 +224,7 @@ manhattan <- function(x, chr="CHR", bp="BP", p="P", snp="SNP",
                 topSNPs <- rbind(topSNPs, chrSNPs[1,])
                 
             }
-            if (logp ){
+            if (logp){
                 textxy(topSNPs$pos, -log10(topSNPs$P), offset = 0.625, labs = topSNPs$SNP, cex = 0.5, ...)
             } else
               textxy(topSNPs$pos, topSNPs$P, offset = 0.625, labs = topSNPs$SNP, cex = 0.5, ...)
