@@ -89,7 +89,7 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
         ticks <- NULL
         for (i in unique(d$index)) {
             if (i == 1) {
-                d$pos[d$index == i] = d$BP[d$index == i]
+                d$pos[d$index == i] <- d$BP[d$index == i]
             } else {
                 ## chromosome position maybe not start at 1, eg. 9999. So gaps may be produced. 
                 lastbase <- lastbase + max(d$BP[d$index == (i - 1)])
@@ -119,9 +119,9 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
     col <- rep_len(col, max(d$index))
     
     g <- ggplot() +
-        theme_classic() +
+        theme_classic(base_size = 15) +
         xlab("Position") +
-        ylab(expression(-log[10](italic(p)))) +
+        ylab(expression(-log[10](P))) +
         geom_text(aes(x = max(d$pos), y = max(d$logp), label = "eQTL"),
                   vjust = "inward", hjust = "inward", size = 6, col = "tomato") +
         geom_text(aes(x = max(d$pos), y = -max(d$logp), label = "sQTL"),
@@ -144,7 +144,7 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
             scale_x_continuous(breaks = ticks, labels = labs)
     }
 
-    g <- g + geom_hline(yintercept = 0, color = "black", linetype = 2, size = 1)
+    g <- g + geom_hline(yintercept = 0, color = "black", linetype = 2, lwd = 0.8)
     
     # Add suggestive and genomewide lines
     if (!is.null(suggestiveline)) {
