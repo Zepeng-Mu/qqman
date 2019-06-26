@@ -43,7 +43,7 @@
 #'   
 #' @export
 
-ggReflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
+ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
                                   col = c("gray80", "gray90"), chrlabs = NULL,
                                   suggestiveline = -log10(1e-7), genomewideline = NULL, 
                                   highlight1 = NULL, highlight2 = NULL,
