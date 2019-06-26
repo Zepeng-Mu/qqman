@@ -47,10 +47,10 @@
 #' @export
 
 reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP", ylim = NULL,
-                      col = c("gray50", "gray70"), chrlabs = NULL,
-                      suggestiveline = -log10(1e-5), genomewideline = -log10(5e-8), 
-                      highlight1 = NULL, highlight2 = NULL, logp = TRUE, annotatePval = NULL, annotateTop = TRUE, ...) {
-
+                                col = c("gray50", "gray70"), chrlabs = NULL,
+                                suggestiveline = -log10(1e-5), genomewideline = -log10(5e-8), 
+                                highlight1 = NULL, highlight2 = NULL, logp = TRUE, annotatePval = NULL, annotateTop = TRUE, ...) {
+    
     # Not sure why, but package check will warn without this.
     # CHR=BP=P=index=NULL
     
@@ -72,7 +72,7 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
     } else {
         d = data.frame(CHR = x[[chr]], BP = x[[bp]], P = x[[p]], pos = NA, index = NA)
     }
-	    
+    
     # Set positions, ticks, and labels for plotting
     ## Sort and keep only values where is numeric.
     d <- d[order(d$CHR, d$BP), ]
@@ -84,46 +84,46 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
     
     d$index = rep.int(seq_along(unique(d$CHR)), times = tapply(d$SNP,d$CHR,length))
     
-    nchr = length(unique(d$CHR))
+    nchr <- length(unique(d$CHR))
     if (nchr == 1) { ## For a single chromosome
-        d$pos = d$BP
-        xlabel = paste('Chromosome',unique(d$CHR),'position')
+        d$pos <- d$BP
+        xlabel <- paste('Chromosome',unique(d$CHR),'position')
     } else { ## For multiple chromosomes
-        lastbase = 0
-        ticks = NULL
+        lastbase <- 0
+        ticks <- NULL
         for (i in unique(d$index)) {
             if (i == 1) {
                 d[d$index == i, ]$pos = d[d$index == i, ]$BP
             } else {
-		        ## chromosome position maybe not start at 1, eg. 9999. So gaps may be produced. 
-        		lastbase = lastbase + max(d[d$index == (i - 1),"BP"])
-        		d[d$index == i,"BP"] = d[d$index == i,"BP"]-min(d[d$index == i,"BP"]) +1
-        		d[d$index == i, "pos"] = d[d$index == i,"BP"] + lastbase
+                ## chromosome position maybe not start at 1, eg. 9999. So gaps may be produced. 
+                lastbase <- lastbase + max(d[d$index == (i - 1),"BP"])
+                d[d$index == i,"BP"] <- d[d$index == i,"BP"]-min(d[d$index == i,"BP"]) +1
+                d[d$index == i, "pos"] <- d[d$index == i,"BP"] + lastbase
             }
         }
-	ticks <-tapply(d$pos,d$index,quantile,probs=0.5)
-        xlabel = 'Chromosome'
+        ticks <- tapply(d$pos,d$index,quantile,probs=0.5)
+        xlabel <- 'Chromosome'
         labs <- unique(d$CHR)
     }
     
     # Initialize plot
-    xmax = ceiling(max(d$pos) * 1.03)
-    xmin = floor(max(d$pos) * -0.03)
+    xmax <- ceiling(max(d$pos) * 1.03)
+    xmin <- floor(max(d$pos) * -0.03)
     
     if (!is.null(ylim)) {
         ymin <- ylim[1]
         ymax <- ylim[2]
     }
-
+    
     # The new way to initialize the plot.
     ## See http://stackoverflow.com/q/23922130/654296
     ## First, define your default arguments
     ### change ylim to include reflection
     ### supress y axis, do it later
     def_args <- list(xaxt='n', yaxt = 'n', bty='n', xaxs='i', las=1, pch=20,
-                     xlim=c(xmin, xmax), ylim=c(-ceiling(max(d$logp)), ceiling(max(d$logp))),
+                     xlim=c(xmin, xmax), ylim=c(ymin, ymax),
                      xlab=xlabel, ylab=expression(-log[10](italic(p))))
-
+    
     ## Next, get a list of ... arguments
     #dotargs <- as.list(match.call())[-1L]
     dotargs <- list(...)
@@ -134,7 +134,7 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
     # If manually specifying chromosome labels, ensure a character vector and number of labels matches number chrs.
     if (!is.null(chrlabs)) {
         if (is.character(chrlabs)) {
-            if (length(chrlabs)==length(labs)) {
+            if (length(chrlabs) == length(labs)) {
                 labs <- chrlabs
             } else {
                 warning("You're trying to specify chromosome labels but the number of labels != number of chromosomes.")
@@ -145,22 +145,21 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
     }
     
     # Create a vector of alternatiting colors
-    #col=rep(col, max(d$CHR))  # replaced by line 187
-    col = rep_len(col, max(d$index))  ## mean this one?  the results are same
-
+    col = rep_len(col, max(d$index))
+    
     # Add points to the plot
     if (nchr == 1) {
-        with(d, points(pos, logp, pch = 20, col = col[1], ...))
+        with(d, points(pos, logp, pch = 20, col = col[1], cex = 0.5, ...))
         # plot reflection points
-        with(d, points(pos, -logp, pch = 20, col = col[1], ...))
+        with(d, points(pos, -logp, pch = 20, col = col[1], cex = 0.5, ...))
     } else {
         # if multiple chromosomes, need to alternate colors and increase the color index (icol) each chr.
         icol=1
         for (i in unique(d$index)) {
-          points(d[d$index == i,"pos"], d[d$index == i,"logp"], col = col[icol], pch = 20, ...)
-          # plot reflection points
-          points(d[d$index == i,"pos"], -d[d$index == i,"logp"], col = col[icol], pch = 20, ...)
-          icol = icol + 1
+            points(d[d$index == i,"pos"], d[d$index == i,"logp"], col = col[icol], pch = 20, ...)
+            # plot reflection points
+            points(d[d$index == i,"pos"], -d[d$index == i,"logp"], col = col[icol], pch = 20, ...)
+            icol = icol + 1
         }
     }
     
@@ -179,21 +178,27 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
     axis(2, at = yticks, labels = ylabs)
     
     # Add suggestive and genomewide lines
-    if (suggestiveline) abline(h = suggestiveline, col = "blue")
-    if (genomewideline) abline(h = genomewideline, col = "red")
+    if (suggestiveline) {
+        abline(h = suggestiveline, col = "blue")
+        abline(h = -suggestiveline, col = "blue")
+    }
+    if (genomewideline){
+        abline(h = genomewideline, col = "red")
+        abline(h = -genomewideline, col = "red")
+    }
     
     # Highlight snps from a character vector
     if (!is.null(highlight1)) {
         if (any(!(highlight1 %in% d$SNP))) warning("You're trying to highlight SNPs that don't exist in your results.")
         highlight1 = d[which(d$SNP %in% highlight1), ]
-        with(highlight1, points(pos, logp, col = "steelblue", pch = 20, ...)) 
+        with(highlight1, points(pos, logp, col = "tomato", pch = 20, ...)) 
     }
     
     # Highlight snps in the lower part 
     if (!is.null(highlight2)) {
         if (any(!(highlight2 %in% d$SNP))) warning("You're trying to highlight SNPs that don't exist in your results.")
         highlight2 <- d[which(d$SNP %in% highlight2), ]
-        with(highlight2, points(pos, -logp, col = "steelblue", pch = 20, ...)) 
+        with(highlight2, points(pos, -logp, col = "tomato", pch = 20, ...)) 
     }
     
     # Highlight top SNPs
@@ -206,12 +211,12 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
         par(xpd = TRUE)
         # annotate these SNPs
         if (annotateTop == FALSE) {
-          if (logp) {
-              with(subset(d, P <= annotatePval), 
-                   textxy(pos, -log10(P), offset = 0.625, labs = topHits$SNP, cex = 0.45), ...)
-          } else
-              with(subset(d, P >= annotatePval), 
-                   textxy(pos, P, offset = 0.625, labs = topHits$SNP, cex = 0.45), ...)
+            if (logp) {
+                with(subset(d, P <= annotatePval), 
+                     textxy(pos, -log10(P), offset = 0.625, labs = topHits$SNP, cex = 0.45), ...)
+            } else
+                with(subset(d, P >= annotatePval), 
+                     textxy(pos, P, offset = 0.625, labs = topHits$SNP, cex = 0.45), ...)
         }
         else {
             # could try alternative, annotate top SNP of each sig chr
@@ -227,7 +232,7 @@ reflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
             if (logp){
                 textxy(topSNPs$pos, -log10(topSNPs$P), offset = 0.625, labs = topSNPs$SNP, cex = 0.5, ...)
             } else
-              textxy(topSNPs$pos, topSNPs$P, offset = 0.625, labs = topSNPs$SNP, cex = 0.5, ...)
+                textxy(topSNPs$pos, topSNPs$P, offset = 0.625, labs = topSNPs$SNP, cex = 0.5, ...)
         }
     }  
     par(xpd = FALSE)
