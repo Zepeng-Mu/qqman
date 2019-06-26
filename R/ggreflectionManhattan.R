@@ -1,6 +1,6 @@
-#' Creates a manhattan plot
+#' Creates a reflection manhattan plot with ggplot2
 #' 
-#' Creates a manhattan plot from PLINK assoc output (or any data frame with 
+#' Creates a reflection manhattan plot from association studies (or any data frame with 
 #' chromosome, position, and p-value).
 #' 
 #' @param x A data.frame with columns "BP," "CHR," "P," and optionally, "SNP."
@@ -26,8 +26,6 @@
 #'   useful to plot raw p-values, but plotting the raw value could be useful for
 #'   other genome-wide plots, for example, peak heights, bayes factors, test 
 #'   statistics, other "scores," etc.
-#' @param annotatePval If set, SNPs below this p-value will be annotated on the plot.
-#'   If logp is FALSE, SNPs above the specified value will be annotated.
 #' @param ... Arguments passed on to other plot/points functions
 #'   
 #' @return A ggplot object reflection manhattan plot.
@@ -46,9 +44,10 @@
 #' @export
 
 ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
-                                  col = c("gray60", "gray80"), chrlabs = NULL,
-                                  suggestiveline = -log10(1e-5), genomewideline = NULL, 
-                                  highlight1 = NULL, highlight2 = NULL, logp = TRUE, annotatePval = NULL, ...) {
+                                  col = c("gray80", "gray90"), chrlabs = NULL,
+                                  suggestiveline = -log10(1e-7), genomewideline = NULL, 
+                                  highlight1 = NULL, highlight2 = NULL,
+                                  text1 = NULL, text2 = NULL, logp = TRUE, annotatePval = NULL, ...) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
     if (!(chr %in% names(x))) stop(paste("Column", chr, "not found!"))
@@ -66,7 +65,8 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
         d <- data.frame(CHR = x[[chr]], BP = x[[bp]], P = x[[p]], pos  =  NA,
                         index = NA, SNP = x[[snp]], stringsAsFactors = FALSE)
     } else {
-        d <- data.frame(CHR = x[[chr]], BP = x[[bp]], P = x[[p]], pos = NA, index = NA)
+        d <- data.frame(CHR = x[[chr]], BP = x[[bp]], P = x[[p]],
+                        stringsAsFactors = FALSE, pos = NA, index = NA)
     }
     
     # Set positions, ticks, and labels for plotting
@@ -119,32 +119,38 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
     col <- rep_len(col, max(d$index))
     
     g <- ggplot() +
-        theme_classic(base_size = 15) +
+        theme_classic(base_size = 18, base_line_size = 0.5) +
         xlab("Position") +
         ylab(expression(-log[10](P))) +
         geom_text(aes(x = max(d$pos), y = max(d$logp), label = "eQTL"),
                   vjust = "inward", hjust = "inward", size = 6, col = "tomato") +
         geom_text(aes(x = max(d$pos), y = -max(d$logp), label = "sQTL"),
-                  vjust = "inward", hjust = "inward", size = 6, col = "steelblue") +
+                  vjust = "inward", hjust = "inward", size = 6, col = "purple") +
         theme(legend.position = "none")
     
     # Add points to the plot
     if (nchr == 1) {
         g <- g + geom_point(data = d, mapping = aes(x = pos, y = logp),
-                            color = col[1], size = 0.5) +
+                            color = col[1], size = 0.6) +
             geom_point(data = d, mapping = aes(x = pos, y = logp),
-                       color = col[1], size = 0.5)
+                       color = col[1], size = 0.6)
     } else {
         # if multiple chromosomes, need to alternate colors and increase the color index (icol) each chr.
         g <- g + geom_point(data = d, mapping = aes(x = pos, y = logp, color = as.factor(index)),
-                            size = 0.5) +
+                            size = 0.6) +
             geom_point(data = d, mapping = aes(x = pos, y = -logp, color = as.factor(index)),
-                       size = 0.5) +
+                       size = 0.6) +
             scale_color_manual(values = col) +
             scale_x_continuous(breaks = ticks, labels = labs)
     }
+    
+    # We need to plot absolute values for y labels
+    # Therefore we need to extract y labels first
+    # And then get the absolute value
+    ylabs <- ggplot_build(g)$layout$panel_params[[1]]$y.major_source
 
-    g <- g + geom_hline(yintercept = 0, color = "black", linetype = 2, lwd = 0.8)
+    g <- g + scale_y_continuous(breaks = ylabs, labels = abs(ylabs)) +
+        geom_hline(yintercept = 0, color = "black", linetype = 2, lwd = 0.8)
     
     # Add suggestive and genomewide lines
     if (!is.null(suggestiveline)) {
@@ -168,7 +174,7 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
         }
         highlight1 <- d %>% filter(SNP %in% highlight1)
         g <- g + geom_point(data = highlight1, mapping = aes(x = pos, y = logp),
-                            color = "tomato")
+                            color = "tomato", size = 0.8)
     }
     
     # Highlight snps in the lower part 
@@ -178,8 +184,29 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
         }
         highlight2 <- d %>% filter(SNP %in% highlight2)
         g <- g + geom_point(data = highlight2, mapping = aes(x = pos, y = -logp),
-                            color = "steelblue")
+                            color = "purple", size = 0.8)
     }
     
+    # Add gene name labels to the plot
+    if (!is.null(text1)) {
+        if (any(!(text1$SNP %in% d$SNP))) {
+            warning("You're trying to highlight SNPs that don't exist in your results.")
+        }
+        text1 <- left_join(text1, highlight1, by = "SNP")
+        g <- g + geom_text_repel(data = text1, mapping = aes(x = pos, y = logp, label = gene),
+                                 color = "grey40", vjust = 0, size = 4,
+                                 nudge_y = max(text1$logp) - text1$logp)
+    }
+    
+    # Add gene name labels to the lower part of the plot
+    if (!is.null(text2)) {
+        if (any(!(text2$SNP %in% d$SNP))) {
+            warning("You're trying to highlight SNPs that don't exist in your results.")
+        }
+        text2 <- left_join(text2, highlight2, by = "SNP")
+        g <- g + geom_text_repel(data = text2, mapping = aes(x = pos, y = -logp, label = gene),
+                                 color = "grey40", vjust = 0, size = 4,
+                                 nudge_y = -max(text2$logp) + text2$logp)
+    }
     return(g)
 }
