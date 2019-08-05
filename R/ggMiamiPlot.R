@@ -39,11 +39,11 @@
 #' @import ggrepel
 #' 
 #' @examples
-#' ggreflectionManhattan(gwasResults)
+#' ggMiamiPlot(gwasResults)
 #'   
 #' @export
 
-ggReflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
+ggMiamiPlot <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
                                   col = c("gray80", "gray90"), chrlabs = NULL,
                                   suggestiveline = -log10(1e-7), genomewideline = NULL, 
                                   highlight1 = NULL, highlight2 = NULL,
