@@ -14,8 +14,8 @@
 #'   PLINK's "P." Said column must be numeric.
 #' @param snp A string denoting the column name for the SNP name (rs number). 
 #'   Defaults to PLINK's "SNP." Said column should be a character.
-#' @param summ.1.name A string for the name of summary statistics 1, "GWAS" by default.
-#' @param summ.2.name Similar to \code{summ.1.name}, "eQTL" by default.
+#' @param summ.1.name An expression for the name of summary statistics 1, "GWAS -log10(P)" by default.
+#' @param summ.2.name Similar to \code{summ.1.name}, "eQTL -log10(P)" by default.
 #' @param col A character vector indicating which colors to alternate.
 #' @param coloc.snp A character of colocalized SNP.
 #' @param coloc.gene A character of colocalized gene.
@@ -43,9 +43,10 @@
 #' @export
 
 ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
-                             summ.1.name = "GWAS", summ.2.name = "eQTL",
+                             summ.1.name = expression(paste("GWAS ", -log[10](P))),
+                             summ.2.name = expression(paste("eQTL ", -log[10](P))),
                              col = c("gray50", "orange"), coloc.snp = "", coloc.gene = "",
-                             PP4 = NA, logp = TRUE, size = 2 ...) {
+                             PP4 = NA, logp = TRUE, size = 2, ...) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
     if (!(chr %in% names(summ.1))) stop(paste("Column", chr, "not found in summ.1!"))
@@ -122,11 +123,10 @@ ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", sn
                    color = col[1], alpha = 0.4, size = size, shape = 16) +
         geom_point(data = d2, mapping = aes(x = BP, y = rescale(logp)),
                    color = col[2], alpha = 0.4, size = size, shape = 16) +
-        scale_y_continuous(name = "GWAS -log10(P)",
-                           breaks = c(0, 1), labels = labels1, position = "left",
-                           sec.axis = sec_axis(trans = ~ ., name = "eQTL -log10(P)",
-                                               breaks = c(0, 1),
-                                               labels = labels2))
+        scale_y_continuous(name = summ.1.name, breaks = c(0, 1),
+                           labels = labels1,
+                           sec.axis = sec_axis(trans = ~ ., name = summ.2.name,
+                                               breaks = c(0, 1), labels = labels2))
     
     return(g)
 }
