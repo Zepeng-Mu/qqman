@@ -24,6 +24,7 @@
 #'   useful to plot raw p-values, but plotting the raw value could be useful for
 #'   other genome-wide plots, for example, peak heights, bayes factors, test 
 #'   statistics, other "scores," etc.
+#' @param size Point size passed to ggplot2
 #' @param ... Arguments passed on to other plot/points functions
 #'   
 #' @return A ggplot object coloc manhattan plot.
@@ -44,7 +45,7 @@
 ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
                              summ.1.name = "GWAS", summ.2.name = "eQTL",
                              col = c("gray50", "orange"), coloc.snp = "", coloc.gene = "",
-                             PP4 = NA, logp = TRUE, ...) {
+                             PP4 = NA, logp = TRUE, size = 2 ...) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
     if (!(chr %in% names(summ.1))) stop(paste("Column", chr, "not found in summ.1!"))
@@ -118,9 +119,9 @@ ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", sn
     
     g <- g +
         geom_point(data = d1, mapping = aes(x = BP, y = rescale(logp)),
-                   color = col[1], alpha = 0.4, size = 2, shape = 16) +
+                   color = col[1], alpha = 0.4, size = size, shape = 16) +
         geom_point(data = d2, mapping = aes(x = BP, y = rescale(logp)),
-                   color = col[2], alpha = 0.4, size = 2, shape = 16) +
+                   color = col[2], alpha = 0.4, size = size, shape = 16) +
         scale_y_continuous(name = "GWAS -log10(P)",
                            breaks = c(0, 1), labels = labels1, position = "left",
                            sec.axis = sec_axis(trans = ~ ., name = "eQTL -log10(P)",
