@@ -18,7 +18,7 @@
 #' @param summ.2.name Similar to \code{summ.1.name}, "eQTL" by default.
 #' @param col A character vector indicating which colors to alternate.
 #' @param coloc.snp A character of colocalized SNP.
-#'   This SNP should be in your dataset.
+#' @param coloc.gene A character of colocalized gene.
 #' @param PP4 A numeric of PP4 value from colocalization analysis to be labeled in the plot.
 #' @param logp If TRUE, the -log10 of the p-value is plotted. It isn't very 
 #'   useful to plot raw p-values, but plotting the raw value could be useful for
@@ -43,16 +43,14 @@
 
 ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
                              summ.1.name = "GWAS", summ.2.name = "eQTL",
-                             col = c("gray80", "gray90"),
-                             suggestiveline = -log10(1e-7), genomewideline = NULL, 
-                             highlight1 = NULL, highlight2 = NULL,
-                             text1 = NULL, text2 = NULL, logp = TRUE, annotatePval = NULL, ...) {
+                             col = c("gray50", "orange"), coloc.snp = "", coloc.gene = "",
+                             PP4 = NA, logp = TRUE, ...) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
     if (!(chr %in% names(summ.1))) stop(paste("Column", chr, "not found in summ.1!"))
     if (!(bp %in% names(summ.1))) stop(paste("Column", bp, "not found in summ.1!"))
     if (!(p %in% names(summ.1))) stop(paste("Column", p, "not found in summ.1!"))
-    if (length(unique(summ.1[[chr]] > 1))) stop("You seem to have more than one chromosome in summ.1!")
+    if (length(unique(summ.1[[chr]])) > 1) stop("You seem to have more than one chromosome in summ.1!")
     ## warn if you don't have a snp column
     if (!(snp %in% names(summ.1))) warning(paste("No SNP column found in summ.1. OK unless you're trying to highlight."))
     ## make sure chr, bp, and p columns are numeric.
@@ -64,7 +62,7 @@ ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", sn
     if (!(chr %in% names(summ.2))) stop(paste("Column", chr, "not found in summ.2!"))
     if (!(bp %in% names(summ.2))) stop(paste("Column", bp, "not found in summ.2!"))
     if (!(p %in% names(summ.2))) stop(paste("Column", p, "not found in summ.2!"))
-    if (length(unique(summ.2[[chr]] > 1))) stop("You seem to have more than one chromosome in summ.2!")
+    if (length(unique(summ.2[[chr]])) > 1) stop("You seem to have more than one chromosome in summ.2!")
     ## warn if you don't have a snp column
     if (!(snp %in% names(summ.2))) warning(paste("No SNP column found in summ.2. OK unless you're trying to highlight."))
     ## make sure chr, bp, and p columns are numeric.
@@ -99,47 +97,35 @@ ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", sn
         d1$logp <- d1$P
         d2$logp <- d2$P
     }
-    
-    d1$index = rep.int(seq_along(unique(d1$CHR)), times = tapply(d1$SNP, d1$CHR, length))
-    d2$index = rep.int(seq_along(unique(d2$CHR)), times = tapply(d2$SNP, d2$CHR, length))
-    
+
     ## Create a data frame combining d1 and d2 to be used in ggplot2
     d1$study.name <- summ.1.name
     d2$study.name <- summ.2.name
-    d <- rbind(d1, d2)
+    
+    labels1 <- as.character(c(0, round(max(d1$logp), 0)))
+    labels2 <- as.character(c(0, round(max(d2$logp), 0)))
     
     g <- ggplot() +
-        theme_classic(base_size = 18, base_line_size = 0.5) +
-        xlab("Position") +
-        scale_y_continuous(name = paste(summ.2.name, expression(-log[10](P))),
-                           breaks = , labels = , position = "right") + 
-        geom_text(aes(x = min(d$pos), y = max(d$logp), label = "GWAS"),
-                  vjust = "inward", hjust = "inward", size = 6, col = "tomato") +
-        geom_text(aes(x = max(d$pos), y = max(d$logp), label = "eQTL"),
-                  vjust = "inward", hjust = "inward", size = 6, col = "purple") +
-        theme(legend.position = "none")
+        theme_classic(base_size = 12, base_line_size = 1) +
+        xlab(paste("Chromosome", unique(d1$CHR))) +
+        theme(legend.position = "none",
+              plot.title = element_text(hjust = 0.5, size = 13),
+              axis.line = element_line(color = "grey80"),
+              axis.ticks = element_line(colour = "grey80"),
+              axis.title.y.left = element_text(color = col[1]),
+              axis.title.y.right = element_text(color = col[2])) +
+        ggtitle(paste0(coloc.gene, " - ", coloc.snp, " (PP4: ", PP4, ")"))
     
-    # Add points to the plot
     g <- g +
         geom_point(data = d1, mapping = aes(x = BP, y = rescale(logp)),
-                   color = col[1], alpha = 0.3, size = 0.6) +
-        scale_y_continuous(name = paste(summ.1.name, expression(-log[10](P))),
-                           breaks = , labels = , position = "left") +
+                   color = col[1], alpha = 0.4, size = 2, shape = 16) +
         geom_point(data = d2, mapping = aes(x = BP, y = rescale(logp)),
-                   color = col[2], alpha = 0.3, size = 0.6) +
-        scale_y_continuous(name = paste(summ.2.name, expression(-log[10](P))),
-                           breaks = , labels = , position = "right")
-    
-    # Add gene name labels to the plot
-    if (!is.null(text1)) {
-        if (any(!(text1$SNP %in% d$SNP))) {
-            warning("You're trying to highlight SNPs that don't exist in your results.")
-        }
-        text1 <- left_join(text1, highlight1, by = "SNP")
-        g <- g + geom_text_repel(data = text1, mapping = aes(x = pos, y = logp, label = gene),
-                                 color = "grey40", vjust = 0, size = 4,
-                                 nudge_y = max(text1$logp) - text1$logp)
-    }
+                   color = col[2], alpha = 0.4, size = 2, shape = 16) +
+        scale_y_continuous(name = "GWAS -log10(P)",
+                           breaks = c(0, 1), labels = labels1, position = "left",
+                           sec.axis = sec_axis(trans = ~ ., name = "eQTL -log10(P)",
+                                               breaks = c(0, 1),
+                                               labels = labels2))
     
     return(g)
 }
