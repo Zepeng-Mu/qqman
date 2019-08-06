@@ -39,15 +39,16 @@
 #' @import ggrepel
 #' 
 #' @examples
-#' ggreflectionManhattan(gwasResults)
+#' ggMiamiPlot(gwasResults)
 #'   
 #' @export
 
-ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
+ggMiamiPlot <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
                                   col = c("gray80", "gray90"), chrlabs = NULL,
                                   suggestiveline = -log10(1e-7), genomewideline = NULL, 
                                   highlight1 = NULL, highlight2 = NULL,
-                                  text1 = NULL, text2 = NULL, logp = TRUE, annotatePval = NULL, ...) {
+                                  highlight.snp = "lociName", highlight.text = "gene",
+                                  text1 = F, text2 = F, logp = TRUE, annotatePval = NULL, ...) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
     if (!(chr %in% names(x))) stop(paste("Column", chr, "not found!"))
@@ -148,7 +149,7 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
     # Therefore we need to extract y labels first
     # And then get the absolute value
     ylabs <- ggplot_build(g)$layout$panel_params[[1]]$y.major_source
-
+    
     g <- g + scale_y_continuous(breaks = ylabs, labels = abs(ylabs)) +
         geom_hline(yintercept = 0, color = "black", linetype = 2, lwd = 0.8)
     
@@ -169,44 +170,47 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
     
     # Highlight snps from a character vector
     if (!is.null(highlight1)) {
-        if (any(!(highlight1 %in% d$SNP))) {
+        highlight1 <- data.frame(SNP = highlight1[[highlight.snp]],
+                                 text = highlight1[[highlight.text]],
+                                 stringsAsFactors = F)
+        
+        if (any(!(highlight1$SNP %in% d$SNP))) {
             warning("You're trying to highlight SNPs that don't exist in your results.")
         }
-        highlight1 <- d %>% filter(SNP %in% highlight1)
-        g <- g + geom_point(data = highlight1, mapping = aes(x = pos, y = logp),
+        
+        d.highlight1 <- d %>% filter(SNP %in% highlight1$SNP)
+        g <- g + geom_point(data = d.highlight1, mapping = aes(x = pos, y = logp),
                             color = "tomato", size = 0.8)
     }
     
     # Highlight snps in the lower part 
     if (!is.null(highlight2)) {
-        if (any(!(highlight2 %in% d$SNP))) {
+        highlight2 <- data.frame(SNP = highlight2[[highlight.snp]],
+                                 text = highlight2[[highlight.text]],
+                                 stringsAsFactors = F)
+        
+        if (any(!(highlight2[[highlight.snp]] %in% d$SNP))) {
             warning("You're trying to highlight SNPs that don't exist in your results.")
         }
-        highlight2 <- d %>% filter(SNP %in% highlight2)
-        g <- g + geom_point(data = highlight2, mapping = aes(x = pos, y = -logp),
+        d.highlight2 <- d %>% filter(SNP %in% highlight2[[highlight.snp]])
+        g <- g + geom_point(data = d.highlight2, mapping = aes(x = pos, y = -logp),
                             color = "purple", size = 0.8)
     }
     
     # Add gene name labels to the plot
-    if (!is.null(text1)) {
-        if (any(!(text1$SNP %in% d$SNP))) {
-            warning("You're trying to highlight SNPs that don't exist in your results.")
-        }
-        text1 <- left_join(text1, highlight1, by = "SNP")
-        g <- g + geom_text_repel(data = text1, mapping = aes(x = pos, y = logp, label = gene),
+    if (text1) {
+        d.text1 <- inner_join(highlight1, d.highlight1, by = "SNP")
+        g <- g + geom_text_repel(data = d.text1, mapping = aes(x = pos, y = logp, label = text),
                                  color = "grey40", vjust = 0, size = 4,
-                                 nudge_y = max(text1$logp) - text1$logp)
+                                 nudge_y = max(d.text1$logp) - d.text1$logp)
     }
     
     # Add gene name labels to the lower part of the plot
-    if (!is.null(text2)) {
-        if (any(!(text2$SNP %in% d$SNP))) {
-            warning("You're trying to highlight SNPs that don't exist in your results.")
-        }
-        text2 <- left_join(text2, highlight2, by = "SNP")
-        g <- g + geom_text_repel(data = text2, mapping = aes(x = pos, y = -logp, label = gene),
+    if (text2) {
+        d.text2 <- inner_join(highlight2, d.highlight2, by = "SNP")
+        g <- g + geom_text_repel(data = d.text2, mapping = aes(x = pos, y = -logp, label = text),
                                  color = "grey40", vjust = 0, size = 4,
-                                 nudge_y = -max(text2$logp) + text2$logp)
+                                 nudge_y = -max(d.text2$logp) + d.text2$logp)
     }
     return(g)
 }
