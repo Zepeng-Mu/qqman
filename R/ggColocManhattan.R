@@ -109,7 +109,7 @@ ggColocManhattan <- function(summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", sn
     
     g <- ggplot() +
         theme_classic(base_size = 12, base_line_size = 1) +
-        xlab(paste("Chromosome", unique(d1$CHR), " (Mb)")) +
+        xlab(paste("Chromosome", unique(d1$CHR), "(Mb)")) +
         theme(legend.position = "none",
               plot.title = element_text(hjust = 0.5, size = 13),
               axis.line = element_line(color = "grey80"),
