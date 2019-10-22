@@ -44,9 +44,10 @@
 
 ggColocManhattanGrid <- function(
     summ.1, summ.2, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
-    summ.1.name = "GWAS ", summ.2.name = "eQTL ",
+    summ.1.name = expression(paste("GWAS", -log[10](P))),
+    summ.2.name = expression(paste("eQTL", -log[10](P))),
     col = c("gray50", "orange"), coloc.snp = "", coloc.gene = "",
-    PP4 = NA, logp = TRUE, size = 2, lead.snp = NULL, r2 = NULL ...
+    PP4 = NA, logp = TRUE, size = 2, lead.snp = NULL, r2 = NULL, ...
 ) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
@@ -73,15 +74,11 @@ ggColocManhattanGrid <- function(
     if (!is.numeric(summ.2[[bp]])) stop(paste(bp, "column in summ.2 should be numeric."))
     if (!is.numeric(summ.2[[p]])) stop(paste(p, "column in summ.2 should be numeric."))
     
-    # Make y labels for GWAS and QTL
-    summ.1.name <- expression(paste(summ.1.name, -log[10](P)))
-    summ.2.name <- expression(paste(summ.2.name, -log[10](P)))
-    
     # Create a new data frame from the input dataframe
     # If the input data frame has a SNP column, add it to the new data frame you're creating.
     if (!is.null(summ.1[[snp]])) {
         d1 <- data.frame(CHR = summ.1[[chr]], BP = summ.1[[bp]], P = summ.1[[p]], pos  =  NA,
-                        index = NA, SNP = summ.1[[snp]], stringsAsFactors = FALSE)
+                         index = NA, SNP = summ.1[[snp]], stringsAsFactors = FALSE)
     } else {
         d1 <- data.frame(CHR = summ.1[[chr]], BP = summ.1[[bp]], P = summ.1[[p]], pos  =  NA,
                          index = NA, stringsAsFactors = FALSE)
@@ -115,46 +112,31 @@ ggColocManhattanGrid <- function(
     # Create shapes for lead SNPs and other SNPs
     snp.shape <- ifelse(d1$BP == lead.snp, 18, 20)
     
-    # Create a data frame combining d1 and d2 to be used in ggplot2
-    d1$study.name <- summ.1.name
-    d2$study.name <- summ.2.name
-    
-    labels1 <- as.character(c(0, round(max(d1$logp), 0)))
-    labels2 <- as.character(c(0, round(max(d2$logp), 0)))
-    
-    g1 <- ggplot(d1, aes(x = BP, y = logp)) +
+    g1 <- ggplot(d1, aes(x = BP / 1e6, y = logp)) +
         theme_classic(base_size = 12, base_line_size = 1) +
         geom_point(col = snp.col, shape = snp.shape) +
         xlab("") + # do not show xlab for d1 data, which is above d2 data
-        ylab(summ.1.name) +
-        theme(legend.position = "none",
-              # plot.title = element_text(hjust = 0.5, size = 13),
-              # axis.line = element_line(color = "grey80"),
-              axis.ticks.x = element_blank(),
-              # axis.title.y.left = element_text(color = col[1]),
-              # axis.title.y.right = element_text(color = col[2])
-            ) +
-        ggtitle(paste0(coloc.gene, " - ", coloc.snp, " (PP4: ", PP4, ")"))
+        ylab(summ.1.name)
     
-    g2 <- ggplot(d2, aes(x = BP, y = logp)) +
+    g2 <- ggplot(d2, aes(x = BP / 1e6, y = logp)) +
         theme_classic(base_size = 12, base_line_size = 1) +
         geom_point(col = snp.col, shape = snp.shape) +
         xlab(paste("Chromosome", unique(d2$CHR), "(Mb)")) +
-        ylab(summ.2.name) +
-        theme(legend.position = "none")
+        ylab(summ.2.name)
     
     # Create a data frame for scatter plot between d1 and d2
     d3 <- data.frame(d1 = d1$logp, d2 = d2$logp,
                      stringsAsFactors = F)
     
     g3 <- ggplot(d3, aes(d1, d2)) +
-        geom_point(col = snp.col) +
+        theme_classic(base_size = 12, base_line_size = 1) +
+        geom_point(col = snp.col, shape = snp.shape) +
         xlab(summ.1.name) +
         ylab(summ.2.name)
     
     # Make legend, also from locuscomparer
     legend_box <- data.frame(x = 0.8, y = seq(0.4, 0.2, -0.05))
-    g3 <- g3+
+    g3 <- ggdraw(g3) +
         geom_rect(data = legend_box,
                   aes(xmin = x, xmax = x + 0.05, ymin = y, ymax = y + 0.05),
                   color = "black",
@@ -165,9 +147,17 @@ ggColocManhattanGrid <- function(
         draw_label("0.2", x = legend_box$x[4] + 0.05, y = legend_box$y[4], hjust = -0.3, size = 10) +
         draw_label(parse(text = "r^2"), x = legend_box$x[1] + 0.05, y = legend_box$y[1], vjust = -2, size = 10)
     
-    # Combine the three subplots
-    p1 <- cowplot::plot_grid(g1, g2, align = "v", nrow = 2, rel_heights=c(0.8,1))
-    p2 <- cowplot::plot_grid(g3, p1)
+    title <- ggdraw() + 
+        draw_label(paste0(coloc.gene, " - ", coloc.snp, " (PP4: ", PP4, ")"),
+                   x = 0,
+                   hjust = 0) +
+        theme(plot.margin = margin(0, 0, 0, 7))
     
-    return(p2)
+    # Combine the three subplots
+    p1 <- plot_grid(g1, g2, align = "v", nrow = 2)
+    p2 <- plot_grid(g3, p1)
+    p3 <- plot_grid(title, p2, ncol = 1,
+                    rel_heights = c(0.1, 1))
+    
+    return(p3)
 }
