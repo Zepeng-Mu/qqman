@@ -109,28 +109,40 @@ ggColocManhattanGrid <- function(
                                 include.lowest=TRUE))
     snp.col[which(d1$BP == lead.snp)] <- "purple"
     
-    # Create shapes for lead SNPs and other SNPs
+    # Create shapes for lead SNP and other SNPs
     snp.shape <- ifelse(d1$BP == lead.snp, 18, 20)
+    
+    # Creat size for lead SNP and other SNPs
+    snp.size <- ifelse(d1$BP == lead.snp, 4, 2)
     
     g1 <- ggplot(d1, aes(x = BP / 1e6, y = logp)) +
         theme_classic(base_size = 12, base_line_size = 1) +
-        geom_point(col = snp.col, shape = snp.shape) +
+        geom_point(col = snp.col, shape = snp.shape, size = snp.size) +
+        geom_point(aes(x = d1$BP[which(d1$BP == lead.snp)] / 1e6,
+                       y = d1$logp[which(d1$BP == lead.snp)]),
+                   col = "purple", shape = 18, size = 4) +
         xlab("") + # do not show xlab for d1 data, which is above d2 data
         ylab(summ.1.name)
     
     g2 <- ggplot(d2, aes(x = BP / 1e6, y = logp)) +
         theme_classic(base_size = 12, base_line_size = 1) +
-        geom_point(col = snp.col, shape = snp.shape) +
+        geom_point(col = snp.col, shape = snp.shape, size = snp.size) +
+        geom_point(aes(x = d2$BP[which(d2$BP == lead.snp)] / 1e6,
+                       y = d2$logp[which(d2$BP == lead.snp)]),
+                   col = "purple", shape = 18, size = 4) +
         xlab(paste("Chromosome", unique(d2$CHR), "(Mb)")) +
         ylab(summ.2.name)
     
     # Create a data frame for scatter plot between d1 and d2
-    d3 <- data.frame(d1 = d1$logp, d2 = d2$logp,
+    d3 <- data.frame(pval1 = d1$logp, pval2 = d2$logp,
                      stringsAsFactors = F)
     
-    g3 <- ggplot(d3, aes(d1, d2)) +
+    g3 <- ggplot(d3, aes(pval1, pval2)) +
         theme_classic(base_size = 12, base_line_size = 1) +
-        geom_point(col = snp.col, shape = snp.shape) +
+        geom_point(col = snp.col, shape = snp.shape, size = snp.size) +
+        geom_point(aes(x = d3$pval1[which(d1$BP == lead.snp)],
+                       y = d3$pval2[which(d1$BP == lead.snp)]),
+                   col = "purple", shape = 18, size = 4) +
         xlab(summ.1.name) +
         ylab(summ.2.name)
     
