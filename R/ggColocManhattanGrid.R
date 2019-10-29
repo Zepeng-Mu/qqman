@@ -47,7 +47,7 @@ ggColocManhattanGrid <- function(
     summ.1.name = expression(paste("GWAS", -log[10](P))),
     summ.2.name = expression(paste("eQTL", -log[10](P))),
     col = c("gray50", "orange"), coloc.snp = "", coloc.gene = "",
-    PP4 = NA, logp = TRUE, size = 2, lead.snp = NULL, r2 = NULL, ...
+    PP = NA, hypothesis = NA, logp = TRUE, size = 2, lead.snp = NULL, r2 = NULL, ...
 ) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
@@ -160,7 +160,7 @@ ggColocManhattanGrid <- function(
         draw_label(parse(text = "r^2"), x = legend_box$x[1] + 0.05, y = legend_box$y[1], vjust = -2, size = 10)
     
     title <- ggdraw() + 
-        draw_label(paste0(coloc.gene, " - ", coloc.snp, " (PP4: ", PP4, ")"),
+        draw_label(paste0(coloc.gene, " - ", coloc.snp, " (PP"%&%hypothesis%&%": ", PP, ")"),
                    x = 0,
                    hjust = 0) +
         theme(plot.margin = margin(0, 0, 0, 7))
