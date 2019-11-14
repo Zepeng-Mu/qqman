@@ -43,11 +43,12 @@
 #'   
 #' @export
 
-ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
+ggReflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP",
                                   col = c("gray80", "gray90"), chrlabs = NULL,
                                   suggestiveline = -log10(1e-7), genomewideline = NULL, 
                                   highlight1 = NULL, highlight2 = NULL,
-                                  text1 = NULL, text2 = NULL, logp = TRUE, annotatePval = NULL, ...) {
+                                  highlight.snp = "lociName", highlight.text = "gene",
+                                  text1 = F, text2 = F, logp = TRUE, annotatePval = NULL, ...) {
     # Check for sensible dataset
     ## Make sure you have chr, bp and p columns.
     if (!(chr %in% names(x))) stop(paste("Column", chr, "not found!"))
@@ -100,6 +101,8 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
         ticks <- tapply(d$pos, d$index, quantile, probs = 0.5)
         xlabel <- 'Chromosome'
         labs <- unique(d$CHR)
+        #Only show odd chromosome numbers to save space
+        labs[labs %% 2 == 0] <- ""
     }
     
     # If manually specifying chromosome labels, ensure a character vector and number of labels matches number chrs.
@@ -119,27 +122,27 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
     col <- rep_len(col, max(d$index))
     
     g <- ggplot() +
-        theme_classic(base_size = 18, base_line_size = 0.5) +
+        theme_classic(base_size = 8) +
         xlab("Position") +
         ylab(expression(-log[10](P))) +
         geom_text(aes(x = max(d$pos), y = max(d$logp), label = "eQTL"),
-                  vjust = "inward", hjust = "inward", size = 6, col = "tomato") +
+                  vjust = "inward", hjust = "outward", size = 3, col = "tomato") +
         geom_text(aes(x = max(d$pos), y = -max(d$logp), label = "sQTL"),
-                  vjust = "inward", hjust = "inward", size = 6, col = "purple") +
+                  vjust = "inward", hjust = "outward", size = 3, col = "purple") +
         theme(legend.position = "none")
     
     # Add points to the plot
     if (nchr == 1) {
         g <- g + geom_point(data = d, mapping = aes(x = pos, y = logp),
-                            color = col[1], size = 0.6) +
+                            color = col[1], size = 0.3) +
             geom_point(data = d, mapping = aes(x = pos, y = logp),
-                       color = col[1], size = 0.6)
+                       color = col[1], size = 0.3)
     } else {
         # if multiple chromosomes, need to alternate colors and increase the color index (icol) each chr.
         g <- g + geom_point(data = d, mapping = aes(x = pos, y = logp, color = as.factor(index)),
-                            size = 0.6) +
+                            size = 0.3) +
             geom_point(data = d, mapping = aes(x = pos, y = -logp, color = as.factor(index)),
-                       size = 0.6) +
+                       size = 0.3) +
             scale_color_manual(values = col) +
             scale_x_continuous(breaks = ticks, labels = labs)
     }
@@ -148,65 +151,83 @@ ggreflectionManhattan <- function(x, chr = "CHR", bp = "BP", p = "P", snp = "SNP
     # Therefore we need to extract y labels first
     # And then get the absolute value
     ylabs <- ggplot_build(g)$layout$panel_params[[1]]$y.major_source
-
+    
     g <- g + scale_y_continuous(breaks = ylabs, labels = abs(ylabs)) +
-        geom_hline(yintercept = 0, color = "black", linetype = 2, lwd = 0.8)
+        geom_hline(yintercept = 0, color = "black", linetype = 1, lwd = 0.3)
     
     # Add suggestive and genomewide lines
     if (!is.null(suggestiveline)) {
         g <- g + geom_hline(yintercept = suggestiveline,
-                            col = "blue", linetype = 2) +
+                            col = "blue", linetype = 2, lwd = 0.5) +
             geom_hline(yintercept = -suggestiveline,
-                       col = "blue", linetype = 2)
+                       col = "blue", linetype = 2, lwd = 0.5)
     }
     
     if (!is.null(genomewideline)){
         g <- g + geom_hline(yintercept = genomewideline,
-                            col = "red", linetype = 2) +
+                            col = "red", linetype = 2, lwd = 0.5) +
             geom_hline(yintercept = -genomewideline,
-                       col = "red", linetype = 2)
+                       col = "red", linetype = 2, lwd = 0.5)
     }
     
+    ## Plot gene text first then highlight SNPs.
+    ## So that SNPs are not masked by link in ggrepel
     # Highlight snps from a character vector
     if (!is.null(highlight1)) {
-        if (any(!(highlight1 %in% d$SNP))) {
+        highlight1 <- data.frame(SNP = highlight1[[highlight.snp]],
+                                 text = highlight1[[highlight.text]],
+                                 stringsAsFactors = F)
+        
+        if (any(!(highlight1$SNP %in% d$SNP))) {
             warning("You're trying to highlight SNPs that don't exist in your results.")
         }
-        highlight1 <- d %>% filter(SNP %in% highlight1)
-        g <- g + geom_point(data = highlight1, mapping = aes(x = pos, y = logp),
-                            color = "tomato", size = 0.8)
+        
+        d.highlight1 <- d %>% filter(SNP %in% highlight1$SNP)
     }
     
     # Highlight snps in the lower part 
     if (!is.null(highlight2)) {
-        if (any(!(highlight2 %in% d$SNP))) {
+        highlight2 <- data.frame(SNP = highlight2[[highlight.snp]],
+                                 text = highlight2[[highlight.text]],
+                                 stringsAsFactors = F)
+        
+        if (any(!(highlight2[[highlight.snp]] %in% d$SNP))) {
             warning("You're trying to highlight SNPs that don't exist in your results.")
         }
-        highlight2 <- d %>% filter(SNP %in% highlight2)
-        g <- g + geom_point(data = highlight2, mapping = aes(x = pos, y = -logp),
-                            color = "purple", size = 0.8)
+        d.highlight2 <- d %>% filter(SNP %in% highlight2$SNP)
     }
     
     # Add gene name labels to the plot
-    if (!is.null(text1)) {
-        if (any(!(text1$SNP %in% d$SNP))) {
-            warning("You're trying to highlight SNPs that don't exist in your results.")
-        }
-        text1 <- left_join(text1, highlight1, by = "SNP")
-        g <- g + geom_text_repel(data = text1, mapping = aes(x = pos, y = logp, label = gene),
-                                 color = "grey40", vjust = 0, size = 4,
-                                 nudge_y = max(text1$logp) - text1$logp)
+    if (text1) {
+        d.text1 <- inner_join(highlight1, d.highlight1, by = "SNP")
+        g <- g + geom_text_repel(data = d.text1, mapping = aes(x = pos, y = logp, label = text),
+                                 color = "grey60", vjust = 0, size = 2,
+                                 nudge_y = 1.05 * d.text1$logp)
     }
     
     # Add gene name labels to the lower part of the plot
-    if (!is.null(text2)) {
-        if (any(!(text2$SNP %in% d$SNP))) {
-            warning("You're trying to highlight SNPs that don't exist in your results.")
-        }
-        text2 <- left_join(text2, highlight2, by = "SNP")
-        g <- g + geom_text_repel(data = text2, mapping = aes(x = pos, y = -logp, label = gene),
-                                 color = "grey40", vjust = 0, size = 4,
-                                 nudge_y = -max(text2$logp) + text2$logp)
+    if (text2) {
+        d.text2 <- inner_join(highlight2, d.highlight2, by = "SNP")
+        g <- g + geom_text_repel(data = d.text2, mapping = aes(x = pos, y = -logp, label = text),
+                                 color = "grey60", vjust = 0, size = 2,
+                                 nudge_y = -1.05 * d.text2$logp)
     }
+    
+    # Add tomato and purple to eQTLs and sQTLs, respectively
+    g <- g + geom_point(data = d.highlight1, mapping = aes(x = pos, y = logp),
+                        color = "tomato", size = 0.3) +
+        geom_point(data = d.highlight2, mapping = aes(x = pos, y = -logp),
+                   color = "purple", size = 0.3)
+    
+    # Add black dots to those shared between eQTLs and sQTLs
+    common.snp <- intersect(d.highlight1$pos, d.highlight2$pos)
+    d.highlight1 <- d.highlight1 %>% filter(pos %in% common.snp)
+    d.highlight2 <- d.highlight2 %>% filter(pos %in% common.snp)
+    
+    g <- g + geom_point(data = d.highlight1, mapping = aes(x = pos, y = logp),
+                        color = "black", size = 0.3) +
+        geom_point(data = d.highlight2, mapping = aes(x = pos, y = -logp),
+                   color = "black", size = 0.3)
+    
     return(g)
 }
